@@ -71,12 +71,12 @@ export class RhythmGame {
     this._stopGame();
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
     window.removeEventListener('resize', this._boundResize);
-    if (this.container && this.container.parentNode) this.container.parentNode.removeChild(this.container);
-    if (this.renderer) { this.renderer.dispose(); this.renderer = null; }
+    // コンテナはDOMに残す（index.htmlが表示/非表示を管理）
+    // rendererもdisposeしない（2回目以降の起動で再利用）
     if (this.audioEl) { this.audioEl.pause(); this.audioEl = null; }
     this.entryAnim = false;
-    if (this.entryTimerId) clearTimeout(this.entryTimerId);
-    if (this.earlyAudioTimerId) clearTimeout(this.earlyAudioTimerId);
+    if (this.entryTimerId) { clearTimeout(this.entryTimerId); this.entryTimerId = null; }
+    if (this.earlyAudioTimerId) { clearTimeout(this.earlyAudioTimerId); this.earlyAudioTimerId = null; }
   }
 
   onStart() { if (this.gs === this.GS.TITLE) this._triggerEntry(); }

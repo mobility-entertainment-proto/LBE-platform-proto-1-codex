@@ -26,6 +26,7 @@ export class GeofenceEngine {
 
   // デバッグ: 任意のlocation_idを強制起動
   debugForce(locationId) {
+    this.debugMode = true; // GPS判定を無効化
     const loc = this.locations.find(l => l.id === locationId);
     if (!loc) return;
     if (this.activeLocationId && this.activeLocationId !== locationId) {
@@ -35,6 +36,7 @@ export class GeofenceEngine {
   }
 
   debugExit() {
+    this.debugMode = false; // GPS判定を再有効化
     if (!this.activeLocationId) return;
     const loc = this.locations.find(l => l.id === this.activeLocationId);
     if (loc) this._exit(loc);
@@ -50,20 +52,24 @@ export class GeofenceEngine {
       const edgeDist = Math.max(0, rawDist - loc.radius);
       if (edgeDist < nearestDist) { nearestDist = edgeDist; nearestLoc = loc; }
 
-      const inside = rawDist <= loc.radius;
-      const isActive = this.activeLocationId === loc.id;
-      if (inside && !isActive) {
-        if (this.activeLocationId) this._exit(this.locations.find(l => l.id === this.activeLocationId));
-        this._enter(loc);
-      } else if (!inside && isActive) {
-        this._exit(loc);
+      // デバッグモード中はGPSによるenter/exit判定をスキップ
+      if (!this.debugMode) {
+        const inside = rawDist <= loc.radius;
+        const isActive = this.activeLocationId === loc.id;
+        if (inside && !isActive) {
+          if (this.activeLocationId) this._exit(this.locations.find(l => l.id === this.activeLocationId));
+          this._enter(loc);
+        } else if (!inside && isActive) {
+          this._exit(loc);
+        }
       }
     }
 
+    const prefix = this.debugMode ? '[DEBUG] ' : '';
     const msg = nearestLoc
       ? (nearestDist < 1 ? `${nearestLoc.name} 内` : `${nearestLoc.name} まで ${nearestDist.toFixed(0)}m`)
       : '位置情報を取得中...';
-    this._notify({ msg, dist: nearestDist, nearestLoc });
+    this._notify({ msg: prefix + msg, dist: nearestDist, nearestLoc });
   }
 
   _enter(loc) {

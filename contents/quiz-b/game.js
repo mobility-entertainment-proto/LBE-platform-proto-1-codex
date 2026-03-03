@@ -54,7 +54,7 @@ export class QuizB {
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
     window.removeEventListener('resize', this._boundResize);
     this.audio?.stopSpeech();
-    if (this.container?.parentNode) this.container.parentNode.removeChild(this.container);
+    // コンテナはDOMに残す（index.htmlが表示/非表示を管理）
   }
 
   onStart() { if (this._state === 'IDLE') this._startQuestion(); }

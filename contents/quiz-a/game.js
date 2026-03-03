@@ -17,7 +17,7 @@ export class QuizA {
   }
 
   onExit() {
-    if (this.container?.parentNode) this.container.parentNode.removeChild(this.container);
+    // コンテナはDOMに残す（index.htmlが表示/非表示を管理）
   }
 
   onStart() {}
