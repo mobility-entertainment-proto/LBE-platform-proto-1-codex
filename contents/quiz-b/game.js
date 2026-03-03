@@ -42,6 +42,8 @@ export class QuizB {
     this._jfx         = [];
     this._btnList     = [];
     this._diff        = DIFF.normal;
+    // BGM
+    this.bgmEl = null;
     // RAF
     this._rafId      = null;
     this._boundLoop  = this._loop.bind(this);
@@ -59,6 +61,21 @@ export class QuizB {
       if (this.questions.length === 0) this.questions = data.questions;
     }
     this._qIndex = 0;
+    // BGM（リズムゲームと同じ楽曲をループ再生）
+    if (!this.bgmEl) {
+      try {
+        const chart = await fetch('./contents/rhythm/chart.json').then(r => r.json());
+        this.bgmEl = new Audio(chart.audio_url);
+        this.bgmEl.crossOrigin = 'anonymous';
+        this.bgmEl.loop = true;
+        this.bgmEl.volume = 0.4;
+        this.audio?.connectAudio(this.bgmEl);
+        this.bgmEl.play().catch(() => {});
+      } catch (e) { console.warn('[QuizB] BGM load failed', e); }
+    } else {
+      this.bgmEl.currentTime = 0;
+      this.bgmEl.play().catch(() => {});
+    }
     this._startLoop();
     this._startQuestion(); // auto-start (skip IDLE / TAP TO START)
   }
@@ -68,6 +85,7 @@ export class QuizB {
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
     window.removeEventListener('resize', this._boundResize);
     this.audio?.stopSpeech();
+    if (this.bgmEl) { this.bgmEl.pause(); this.bgmEl = null; }
     // コンテナはDOMに残す（index.htmlが管理）
   }
 
@@ -311,13 +329,13 @@ export class QuizB {
     hit.judged = true;
     if (hit.isCorrect) {
       this._result = 'correct';
-      this.audio?.playSFX('correct');
+      this.audio?.playSFX('pinpon');
       this._spawnJfx('CORRECT!', '#ffe566', hit.lane);
       for (const n of this._notes) n.judged = true;
       setTimeout(() => { if (this._state === 'FLOWING') this._state = 'RESULT'; }, 800);
     } else {
       this._result = 'wrong';
-      this.audio?.playSFX('wrong');
+      this.audio?.playSFX('bubuu');
       this._spawnJfx('WRONG!', '#ff5555', hit.lane);
       setTimeout(() => { if (this._state === 'FLOWING') this._state = 'RESULT'; }, 800);
     }

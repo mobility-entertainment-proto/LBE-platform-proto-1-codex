@@ -63,6 +63,14 @@ export class AudioManager {
       tone(784, 0.2, 0.3, 'sine', 0.2);
     } else if (type === 'wrong') {
       tone(150, 0.3, 0.35, 'sawtooth');
+    } else if (type === 'pinpon') {
+      // ピン（高音・短）→ ポーン（中音・余韻）
+      tone(1047, 0.10, 0.38, 'sine', 0);
+      tone(784,  0.55, 0.42, 'sine', 0.11);
+    } else if (type === 'bubuu') {
+      // ブブー（低い鋸歯状波 × 2連打）
+      tone(110, 0.20, 0.55, 'sawtooth', 0);
+      tone(100, 0.25, 0.55, 'sawtooth', 0.22);
     } else if (type === 'start') {
       // クラッカー風
       const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.06, this.ctx.sampleRate);
