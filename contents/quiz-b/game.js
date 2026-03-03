@@ -493,14 +493,44 @@ export class QuizB {
 
       c.restore();
 
-      // テキスト（十分な大きさになってから表示）
-      if (sNear > 0.25) {
+      // テキスト（十分な大きさになってから表示 / 複数行折り返し）
+      if (sNear > 0.22) {
         c.save();
-        c.globalAlpha = Math.min(1, (sNear - 0.25) / 0.25);
+        c.globalAlpha = Math.min(1, (sNear - 0.22) / 0.28);
         c.fillStyle   = '#fff';
-        c.font        = `bold ${Math.max(10, hwNear * 0.52)|0}px monospace`;
         c.textAlign   = 'center';
-        this._wrapTextClip(n.text, xNear, yNear - hwNear * 0.35, hwNear * 1.8, hwNear * 0.55);
+        c.shadowBlur  = 0;
+
+        const textMaxW = hwNear * 1.88;          // ノート幅の94%
+        const trapH    = Math.max(1, yNear - yFar); // 台形の縦幅（px）
+
+        // フォントサイズ: 幅÷5文字 と 高さ÷2.8行 の小さい方（最小11px、最大28px）
+        const fontSize = Math.max(11, Math.min(
+          textMaxW / 5,   // 幅基準: 5文字/行を目標
+          trapH    / 2.8, // 高さ基準: 最大2行+余白
+          28              // 上限
+        ));
+        c.font = `bold ${fontSize|0}px monospace`;
+        const lineH = fontSize * 1.3;
+
+        // 折り返し（フォント設定後に measureText で正確に計算）
+        const lines = [];
+        let line = '';
+        for (const ch of n.text.split('')) {
+          const test = line + ch;
+          if (c.measureText(test).width > textMaxW && line !== '') {
+            lines.push(line);
+            if (lines.length >= 3) break; // 最大3行
+            line = ch;
+          } else { line = test; }
+        }
+        if (line && lines.length < 3) lines.push(line);
+
+        // 台形の縦中央に配置
+        const totalH  = lines.length * lineH;
+        const startY  = (yNear + yFar) / 2 - totalH / 2 + lineH * 0.78;
+        lines.forEach((ln, i) => c.fillText(ln, xNear, startY + i * lineH));
+
         c.restore();
       }
     }
