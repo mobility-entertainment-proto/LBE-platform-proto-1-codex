@@ -62,9 +62,17 @@ export class RhythmGame {
     this.audioEl.crossOrigin = 'anonymous';
     this.audioEl.load();
     this.audioEl.addEventListener('ended', () => { if (this.gs === this.GS.PLAYING) this.gs = this.GS.RESULT; });
-    this.gs = this.GS.SETTINGS;
-    this._showSettingsOverlay(true);
+    // Apply saved settings without showing settings overlay
+    const d = this.DIFFICULTIES[this.diffKey];
+    this.APPROACH_MS = d.approachMs; this.WIN_P = d.winP; this.WIN_G = d.winG; this.WIN_OK = d.winOk;
+    const ov   = this.container?.querySelector('#rg-settings-ov');
+    const gear = this.container?.querySelector('#rg-gear-btn');
+    if (ov)   ov.style.display   = 'none';
+    if (gear) gear.style.display = 'block';
+    this.gs = this.GS.TITLE;
     this._startLoop();
+    // Auto-trigger entry animation for seamless/surprise feel
+    setTimeout(() => this._triggerEntry(), 300);
   }
 
   onExit() {

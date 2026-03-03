@@ -59,8 +59,8 @@ export class QuizB {
       if (this.questions.length === 0) this.questions = data.questions;
     }
     this._qIndex = 0;
-    this._state  = 'IDLE';
     this._startLoop();
+    this._startQuestion(); // auto-start (skip IDLE / TAP TO START)
   }
 
   onExit() {

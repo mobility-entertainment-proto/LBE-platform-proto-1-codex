@@ -12,6 +12,54 @@
 html,body{width:100%;height:100%;overflow:hidden;background:#04040e;touch-action:none;
   font-family:'Consolas','Courier New',monospace;color:#fff;}
 
+/* ── Config screen ── */
+#config-screen{
+  position:fixed;inset:0;z-index:6;
+  background:#04040e;
+  display:flex;flex-direction:column;align-items:center;
+  overflow-y:auto;padding:20px 16px 40px;touch-action:auto;
+}
+#config-screen.hidden{display:none;}
+
+#config-title{
+  font-size:clamp(22px,5vw,36px);letter-spacing:4px;color:#fff;
+  text-shadow:0 0 24px #55aaff;margin-bottom:4px;margin-top:8px;
+}
+#config-subtitle{font-size:12px;color:#445;letter-spacing:2px;margin-bottom:28px;}
+
+.config-loc-card{
+  width:100%;max-width:520px;
+  background:#0d0d20;border:1px solid #2a2a4a;border-radius:12px;
+  padding:16px 18px;margin-bottom:14px;
+}
+.config-loc-name{
+  font-size:clamp(13px,3vw,16px);color:#66ccff;margin-bottom:14px;
+  letter-spacing:1px;display:flex;align-items:center;gap:8px;
+}
+.config-loc-name span.tag{
+  font-size:10px;background:#1a2a40;border:1px solid #2a4a6a;
+  border-radius:4px;padding:2px 7px;color:#4488aa;letter-spacing:1px;
+}
+.config-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.config-field label{font-size:10px;color:#445;letter-spacing:1px;display:block;margin-bottom:5px;}
+.config-field input{
+  width:100%;padding:8px 10px;background:#04040e;
+  border:1px solid #2a2a4a;border-radius:6px;
+  color:#eee;font-family:monospace;font-size:13px;
+  outline:none;touch-action:manipulation;
+}
+.config-field input:focus{border-color:#55aaff;}
+
+#config-start-btn{
+  width:100%;max-width:520px;
+  padding:18px;border-radius:12px;
+  background:#0e1a30;border:2px solid #55aaff;color:#66ccff;
+  font-family:monospace;font-size:clamp(15px,3.5vw,20px);
+  font-weight:bold;cursor:pointer;letter-spacing:3px;
+  margin-top:8px;touch-action:manipulation;
+}
+#config-start-btn:active{background:#1a2a44;}
+
 /* ── Status screen ── */
 #status-screen{
   position:fixed;inset:0;z-index:5;
@@ -30,11 +78,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#04040e;touch-action
   text-shadow:0 0 20px #55aaff;margin-bottom:8px;
 }
 #status-area{font-size:clamp(12px,3vw,18px);color:#778;margin-bottom:36px;letter-spacing:1px;}
-#status-tap{
-  font-size:clamp(14px,3.5vw,22px);color:rgba(255,220,60,0.85);
-  animation:pulse 1.4s ease-in-out infinite;letter-spacing:2px;
-}
-@keyframes pulse{0%,100%{opacity:.5;transform:scale(1);}50%{opacity:1;transform:scale(1.04);}}
 #status-gps{
   position:fixed;bottom:12px;left:0;right:0;text-align:center;
   font-size:11px;color:#334;letter-spacing:1px;
@@ -78,14 +121,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#04040e;touch-action
 </head>
 <body>
 
-<!-- Status screen (area outside geofence) -->
-<div id="status-screen">
+<!-- Config screen (shown first) -->
+<div id="config-screen">
+  <div id="config-title">LBE PLATFORM</div>
+  <div id="config-subtitle">LOCATION BASED ENTERTAINMENT</div>
+  <div id="config-cards"></div>
+  <button id="config-start-btn">▶ START</button>
+</div>
+
+<!-- Status screen (geofence waiting, hidden until START) -->
+<div id="status-screen" class="hidden">
   <div id="status-title">LBE PLATFORM</div>
   <div id="status-subtitle">LOCATION BASED ENTERTAINMENT</div>
   <div id="status-dist">-- m</div>
   <div id="status-area">位置情報を取得中...</div>
   <div id="status-bar"><div id="status-bar-fill" style="width:0%"></div></div>
-  <div id="status-tap">TAP TO ENABLE AUDIO</div>
   <div id="status-gps">GPS: 取得待機中</div>
 </div>
 
@@ -117,27 +167,53 @@ let audioUnlocked = false;
 let activeContent = null;
 
 // ── DOM refs ─────────────────────────────────────────────────
-const statusScreen   = document.getElementById('status-screen');
+const configScreen     = document.getElementById('config-screen');
+const configCards      = document.getElementById('config-cards');
+const statusScreen     = document.getElementById('status-screen');
 const contentContainer = document.getElementById('content-container');
-const statusDist     = document.getElementById('status-dist');
-const statusArea     = document.getElementById('status-area');
-const statusTap      = document.getElementById('status-tap');
-const statusGps      = document.getElementById('status-gps');
-const statusBarFill  = document.getElementById('status-bar-fill');
+const statusDist       = document.getElementById('status-dist');
+const statusArea       = document.getElementById('status-area');
+const statusGps        = document.getElementById('status-gps');
+const statusBarFill    = document.getElementById('status-bar-fill');
 
-// ── Audio unlock (first tap) ──────────────────────────────────
+// ── Audio unlock ──────────────────────────────────────────────
 function unlockAudio() {
   if (audioUnlocked) return;
   audioManager.unlock();
   audioUnlocked = true;
-  statusTap.style.display = 'none';
 }
-document.addEventListener('touchstart', unlockAudio, { once: true });
-document.addEventListener('mousedown',  unlockAudio, { once: true });
 
-// ── Load locations & boot ─────────────────────────────────────
+// ── Load locations & build config cards ──────────────────────
 const locData = await fetch('./data/locations.json').then(r => r.json());
 locations = locData;
+
+const CONTENT_LABELS = { 'rhythm': 'RHYTHM GAME', 'quiz-b': 'QUIZ B', 'quiz-a': 'QUIZ A' };
+for (const loc of locations) {
+  const card = document.createElement('div');
+  card.className = 'config-loc-card';
+  card.dataset.locId = loc.id;
+  card.innerHTML = `
+    <div class="config-loc-name">
+      📍 ${loc.name}
+      <span class="tag">${CONTENT_LABELS[loc.content] || loc.content}</span>
+    </div>
+    <div class="config-fields">
+      <div class="config-field">
+        <label>LATITUDE</label>
+        <input type="number" step="0.0001" data-field="lat" value="${loc.lat}">
+      </div>
+      <div class="config-field">
+        <label>LONGITUDE</label>
+        <input type="number" step="0.0001" data-field="lng" value="${loc.lng}">
+      </div>
+      <div class="config-field">
+        <label>RADIUS (m)</label>
+        <input type="number" step="10" data-field="radius" value="${loc.radius}">
+      </div>
+    </div>
+  `;
+  configCards.appendChild(card);
+}
 
 // Content instances
 const contentRegistry = {
@@ -156,7 +232,6 @@ for (const [key, content] of Object.entries(contentRegistry)) {
 
 // ── Show / hide content ───────────────────────────────────────
 function showContent(contentKey) {
-  // hide all
   for (const el of contentContainer.children) el.style.display = 'none';
   const target = contentContainer.querySelector(`[data-content-key="${contentKey}"]`);
   if (target) target.style.display = 'block';
@@ -169,12 +244,10 @@ function hideContent() {
   contentContainer.style.display = 'none';
   for (const el of contentContainer.children) el.style.display = 'none';
   statusScreen.classList.remove('hidden');
-  statusTap.style.display = audioUnlocked ? 'none' : 'block';
   activeContent = null;
 }
 
 // ── Geofence callbacks ────────────────────────────────────────
-// Patch content registry to trigger show/hide
 for (const loc of locations) {
   const key = loc.content;
   const original = contentRegistry[key];
@@ -191,36 +264,63 @@ for (const loc of locations) {
   };
 }
 
-// ── Geofence engine ───────────────────────────────────────────
-geofence = new GeofenceEngine(locations, contentRegistry);
-geofence.start(({ msg, dist, nearestLoc }) => {
-  statusGps.textContent = `GPS: ${msg}`;
-  if (dist !== undefined && nearestLoc) {
-    const inside = dist < 1;
-    statusDist.textContent = inside ? 'エリア内' : `${dist.toFixed(0)} m`;
-    statusArea.textContent = nearestLoc.name;
-    const pct = inside ? 100 : Math.max(0, 100 - (dist / 500) * 100);
-    statusBarFill.style.width = pct + '%';
+// ── START button ──────────────────────────────────────────────
+document.getElementById('config-start-btn').addEventListener('click', () => {
+  unlockAudio();
+
+  // Read input values → update locations in-place
+  for (const card of configCards.children) {
+    const locId  = card.dataset.locId;
+    const loc    = locations.find(l => l.id === locId);
+    if (!loc) continue;
+    const lat    = parseFloat(card.querySelector('[data-field="lat"]').value);
+    const lng    = parseFloat(card.querySelector('[data-field="lng"]').value);
+    const radius = parseFloat(card.querySelector('[data-field="radius"]').value);
+    if (!isNaN(lat))    loc.lat    = lat;
+    if (!isNaN(lng))    loc.lng    = lng;
+    if (!isNaN(radius)) loc.radius = radius;
+  }
+
+  // Start geofence engine
+  geofence = new GeofenceEngine(locations, contentRegistry);
+  geofence.start(({ msg, dist, nearestLoc }) => {
+    statusGps.textContent = `GPS: ${msg}`;
+    if (dist !== undefined && nearestLoc) {
+      const inside = dist < 1;
+      statusDist.textContent = inside ? 'エリア内' : `${dist.toFixed(0)} m`;
+      statusArea.textContent = nearestLoc.name;
+      const pct = inside ? 100 : Math.max(0, 100 - (dist / 500) * 100);
+      statusBarFill.style.width = pct + '%';
+    }
+  });
+
+  // Switch to waiting screen
+  configScreen.classList.add('hidden');
+  statusScreen.classList.remove('hidden');
+
+  // Build debug panel
+  const debugLocDiv = document.getElementById('debug-locations');
+  debugLocDiv.innerHTML = '';
+  for (const loc of locations) {
+    const btn = document.createElement('button');
+    btn.className = 'debug-loc-btn';
+    btn.textContent = `📍 ${loc.name}`;
+    btn.onclick = () => {
+      unlockAudio();
+      geofence?.debugForce(loc.id);
+      document.getElementById('debug-panel').classList.remove('open');
+    };
+    debugLocDiv.appendChild(btn);
   }
 });
 
-// ── Debug panel ───────────────────────────────────────────────
-const debugLocDiv = document.getElementById('debug-locations');
-for (const loc of locations) {
-  const btn = document.createElement('button');
-  btn.className = 'debug-loc-btn';
-  btn.textContent = `📍 ${loc.name}`;
-  btn.onclick = () => {
-    unlockAudio();
-    geofence.debugForce(loc.id);
-    document.getElementById('debug-panel').classList.remove('open');
-  };
-  debugLocDiv.appendChild(btn);
-}
-
-// グローバル関数として公開
+// ── Debug panel globals ───────────────────────────────────────
 window.toggleDebug = () => document.getElementById('debug-panel').classList.toggle('open');
-window.debugExit   = () => { geofence.debugExit(); hideContent(); document.getElementById('debug-panel').classList.remove('open'); };
+window.debugExit   = () => {
+  geofence?.debugExit();
+  hideContent();
+  document.getElementById('debug-panel').classList.remove('open');
+};
 </script>
 </body>
 </html>
