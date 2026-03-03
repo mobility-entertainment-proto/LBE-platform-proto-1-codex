@@ -16,5 +16,14 @@
     "radius": 300,
     "content": "quiz-b",
     "content_id": "santamonica_001"
+  },
+  {
+    "id": "location_003",
+    "name": "東京エリア - ライブマップ",
+    "lat": 35.6762,
+    "lng": 139.6503,
+    "radius": 50000,
+    "content": "live-map",
+    "content_id": "livemap_tokyo_001"
   }
 ]

@@ -194,6 +194,7 @@ import { GeofenceEngine } from './core/geofence.js';
 import { RhythmGame }    from './contents/rhythm/game.js';
 import { QuizB }         from './contents/quiz-b/game.js';
 import { QuizA }         from './contents/quiz-a/game.js';
+import { LiveMap }       from './contents/live-map/game.js';
 
 // ── State ────────────────────────────────────────────────────
 const audioManager = new AudioManager();
@@ -223,7 +224,7 @@ function unlockAudio() {
 const locData = await fetch('./data/locations.json').then(r => r.json());
 locations = locData;
 
-const CONTENT_LABELS = { 'rhythm': 'RHYTHM GAME', 'quiz-b': 'QUIZ B', 'quiz-a': 'QUIZ A' };
+const CONTENT_LABELS = { 'rhythm': 'RHYTHM GAME', 'quiz-b': 'QUIZ B', 'quiz-a': 'QUIZ A', 'live-map': 'LIVE MAP' };
 for (const loc of locations) {
   const card = document.createElement('div');
   card.className = 'config-loc-card';
@@ -290,9 +291,10 @@ document.getElementById('rg-offset-input').addEventListener('input', rgUpdateOff
 
 // Content instances
 const contentRegistry = {
-  'rhythm': new RhythmGame(audioManager),
-  'quiz-b': new QuizB(audioManager),
-  'quiz-a': new QuizA(audioManager),
+  'rhythm':   new RhythmGame(audioManager),
+  'quiz-b':   new QuizB(audioManager),
+  'quiz-a':   new QuizA(audioManager),
+  'live-map': new LiveMap(audioManager),
 };
 
 // Inject content UIs (hidden by default)
