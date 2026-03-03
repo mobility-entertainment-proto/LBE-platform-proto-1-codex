@@ -60,6 +60,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#04040e;touch-action
 }
 #config-start-btn:active{background:#1a2a44;}
 
+/* ── Rhythm settings card ── */
+#rg-config-card{width:100%;max-width:520px;background:#0d0d20;border:1px solid #2a2a4a;border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.rg-diff-row{display:flex;gap:10px;margin-bottom:10px;}
+.rg-diff-btn{
+  flex:1;padding:11px 0;border-radius:8px;border:2px solid #2a2a4a;
+  background:#0d0d20;color:#445;font-family:monospace;font-size:12px;
+  font-weight:bold;cursor:pointer;letter-spacing:1px;touch-action:manipulation;transition:all .15s;
+}
+#rg-diff-desc{font-size:10px;color:#445;margin-bottom:14px;min-height:14px;}
+.rg-offset-row{display:flex;align-items:center;gap:10px;}
+.rg-offset-row span{font-size:11px;color:#445;white-space:nowrap;}
+.rg-offset-row input{flex:1;accent-color:#55aaff;}
+#rg-offset-val{text-align:center;margin-top:8px;font-size:15px;font-weight:bold;color:#eee;}
+#rg-offset-hint{font-size:10px;color:#445;margin-top:6px;text-align:center;}
+
 /* ── Status screen ── */
 #status-screen{
   position:fixed;inset:0;z-index:5;
@@ -126,6 +141,27 @@ html,body{width:100%;height:100%;overflow:hidden;background:#04040e;touch-action
   <div id="config-title">LBE PLATFORM</div>
   <div id="config-subtitle">LOCATION BASED ENTERTAINMENT</div>
   <div id="config-cards"></div>
+
+  <!-- Rhythm game settings -->
+  <div id="rg-config-card">
+    <div class="config-loc-name">🎵 RHYTHM GAME 設定 <span class="tag">SETTINGS</span></div>
+    <div style="font-size:10px;color:#445;letter-spacing:2px;margin-bottom:10px;">難易度</div>
+    <div class="rg-diff-row">
+      <button class="rg-diff-btn" data-diff="EASY">EASY</button>
+      <button class="rg-diff-btn" data-diff="NORMAL">NORMAL</button>
+      <button class="rg-diff-btn" data-diff="HARD">HARD</button>
+    </div>
+    <div id="rg-diff-desc"></div>
+    <div style="font-size:10px;color:#445;letter-spacing:2px;margin-bottom:10px;">オフセット調整</div>
+    <div class="rg-offset-row">
+      <span>-200ms</span>
+      <input type="range" id="rg-offset-input" min="-200" max="200" step="1" value="0">
+      <span>+200ms</span>
+    </div>
+    <div id="rg-offset-val">0ms</div>
+    <div id="rg-offset-hint">早押し傾向→+ / 遅押し傾向→−</div>
+  </div>
+
   <button id="config-start-btn">▶ START</button>
 </div>
 
@@ -215,6 +251,43 @@ for (const loc of locations) {
   configCards.appendChild(card);
 }
 
+// ── Rhythm game settings UI ──────────────────────────────────
+const RG_DIFF_INFO = {
+  EASY:   { col:'#66bb6a', desc:'PERFECT ±150ms / GREAT ±300ms / GOOD ±450ms' },
+  NORMAL: { col:'#26c6da', desc:'PERFECT ±100ms / GREAT ±200ms / GOOD ±300ms' },
+  HARD:   { col:'#ff7043', desc:'PERFECT ±50ms / GREAT ±100ms / GOOD ±160ms'  },
+};
+let rgDiffKey = localStorage.getItem('rg_diff') || 'NORMAL';
+
+function rgSelectDiff(key) {
+  rgDiffKey = key;
+  for (const btn of document.querySelectorAll('.rg-diff-btn')) {
+    const k = btn.dataset.diff;
+    const info = RG_DIFF_INFO[k];
+    const sel = (k === key);
+    btn.style.borderColor = sel ? info.col : '#2a2a4a';
+    btn.style.color       = sel ? info.col : '#445';
+    btn.style.background  = sel ? '#0a0a15' : '#0d0d20';
+  }
+  document.getElementById('rg-diff-desc').textContent = RG_DIFF_INFO[key]?.desc || '';
+}
+
+function rgUpdateOffset() {
+  const v = +document.getElementById('rg-offset-input').value;
+  const el = document.getElementById('rg-offset-val');
+  el.textContent = (v >= 0 ? '+' : '') + v + 'ms';
+  el.style.color  = v === 0 ? '#aaa' : v > 0 ? '#ffaa44' : '#4488ff';
+}
+
+// Init rhythm settings UI
+document.getElementById('rg-offset-input').value = localStorage.getItem('rg_offset') || 0;
+rgSelectDiff(rgDiffKey);
+rgUpdateOffset();
+document.querySelectorAll('.rg-diff-btn').forEach(btn =>
+  btn.addEventListener('click', () => rgSelectDiff(btn.dataset.diff))
+);
+document.getElementById('rg-offset-input').addEventListener('input', rgUpdateOffset);
+
 // Content instances
 const contentRegistry = {
   'rhythm': new RhythmGame(audioManager),
@@ -280,6 +353,14 @@ document.getElementById('config-start-btn').addEventListener('click', () => {
     if (!isNaN(lng))    loc.lng    = lng;
     if (!isNaN(radius)) loc.radius = radius;
   }
+
+  // Apply rhythm game settings to the instance and persist
+  const rg = contentRegistry['rhythm'];
+  const offsetVal = +document.getElementById('rg-offset-input').value;
+  rg.diffKey    = rgDiffKey;
+  rg.offsetAdj  = offsetVal;
+  localStorage.setItem('rg_diff',   rgDiffKey);
+  localStorage.setItem('rg_offset', offsetVal);
 
   // Start geofence engine
   geofence = new GeofenceEngine(locations, contentRegistry);
