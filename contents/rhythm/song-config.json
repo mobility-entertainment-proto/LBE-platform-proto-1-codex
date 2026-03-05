@@ -1,0 +1,12 @@
+{
+  "activeTrack": "default",
+  "tracks": {
+    "default": {
+      "label": "Rockot Drive Breakbeat",
+      "audio_url": "https://mobility-entertainment-proto.github.io/mobility-rhythm-game-5/rockot-drive-breakbeat-173062.mp3",
+      "chart_url": "./contents/rhythm/chart.json",
+      "offset_ms": 1324
+    }
+  }
+}
+

@@ -1,31 +1,50 @@
 {
   "questions": [
     {
-      "id": "q001",
+      "id": "tokyo_q1",
       "location_id": "location_002",
-      "question": "サンタモニカ・ピアが建設されたのは何年でしょう？",
-      "answer": "1909年",
-      "choices": ["1885年", "1909年", "1932年", "1955年"],
-      "explanation": "サンタモニカ・ピアは1909年に開設されました。アメリカ西海岸で最も有名な桟橋の一つです。",
+      "question": "東京タワーの高さは約何メートル？",
+      "answer": "約333m",
+      "choices": ["約250m", "約333m", "約450m", "約500m"],
+      "explanation": "東京タワーは1958年に完成し、高さは333mです。",
       "difficulty": "normal"
     },
     {
-      "id": "q002",
+      "id": "tokyo_q2",
       "location_id": "location_002",
-      "question": "ルート66の終点はどこでしょう？",
-      "answer": "サンタモニカ",
-      "choices": ["ロサンゼルス", "サンタモニカ", "マリブ", "ベニスビーチ"],
-      "explanation": "アメリカの国道ルート66はイリノイ州シカゴから始まり、サンタモニカ・ピアで終わります。",
+      "question": "東京23区で最も面積が大きい区は？",
+      "answer": "大田区",
+      "choices": ["世田谷区", "江戸川区", "練馬区", "大田区"],
+      "explanation": "東京23区では大田区が最も面積が大きい区です。",
+      "difficulty": "normal"
+    },
+    {
+      "id": "tokyo_q3",
+      "location_id": "location_002",
+      "question": "東京の都庁（東京都庁）があるのはどこ？",
+      "answer": "新宿区",
+      "choices": ["千代田区", "港区", "新宿区", "台東区"],
+      "explanation": "東京都庁は新宿区西新宿にあります。",
       "difficulty": "easy"
     },
     {
-      "id": "q003",
+      "id": "tokyo_q4",
       "location_id": "location_002",
-      "question": "モビリティエンターテイメントが目指すのはどれでしょう？",
-      "answer": "移動体験の革新",
-      "choices": ["車の販売促進", "移動体験の革新", "交通渋滞の解消", "燃費の改善"],
-      "explanation": "モビリティエンターテイメントは、移動そのものをエンターテイメント体験に変えることを目指しています。",
+      "question": "浅草寺がある東京の区は？",
+      "answer": "台東区",
+      "choices": ["文京区", "台東区", "墨田区", "中央区"],
+      "explanation": "浅草寺は台東区浅草にある、東京を代表する寺院です。",
       "difficulty": "easy"
+    },
+    {
+      "id": "tokyo_q5",
+      "location_id": "location_002",
+      "question": "渋谷駅前で有名なスクランブル交差点がある区は？",
+      "answer": "渋谷区",
+      "choices": ["品川区", "渋谷区", "目黒区", "中野区"],
+      "explanation": "スクランブル交差点は渋谷駅ハチ公口側、渋谷区にあります。",
+      "difficulty": "normal"
     }
   ]
 }
+

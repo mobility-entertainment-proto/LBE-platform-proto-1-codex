@@ -1,5 +1,7 @@
 // contents/rhythm/game.js  リズムゲーム (ContentBase実装)
 
+import { loadSongConfig } from '../../core/song-config.js';
+
 export class RhythmGame {
   constructor(audioManager) {
     this.audio = audioManager;
@@ -31,6 +33,7 @@ export class RhythmGame {
     // Entry anim
     this.entryAnim = false; this.entryAnimT = 0;
     this.entryTimerId = null; this.earlyAudioTimerId = null; this.earlyAudioStarted = false;
+    this.entryFxTimers = [];
     // RAF
     this._rafId = null;
     this._boundLoop = this._loop.bind(this);
@@ -55,8 +58,12 @@ export class RhythmGame {
   async onEnter(location) {
     this._location = location;
     if (!this.chart) {
-      const r = await fetch('./contents/rhythm/chart.json');
+      const conf = await loadSongConfig();
+      const chartUrl = conf.track?.chart_url || './contents/rhythm/chart.json';
+      const r = await fetch(chartUrl);
       this.chart = await r.json();
+      if (conf.track?.offset_ms !== undefined) this.chart.offset_ms = conf.track.offset_ms;
+      if (conf.track?.audio_url) this.chart.audio_url = conf.track.audio_url;
     }
     this.audioEl = new Audio(this.chart.audio_url);
     this.audioEl.crossOrigin = 'anonymous';
@@ -406,8 +413,13 @@ export class RhythmGame {
     this.entryAnim = true; this.entryAnimT = performance.now();
     if (this.entryTimerId) clearTimeout(this.entryTimerId);
     if (this.earlyAudioTimerId) clearTimeout(this.earlyAudioTimerId);
+    this.entryFxTimers.forEach(id => clearTimeout(id));
+    this.entryFxTimers = [];
     this.earlyAudioStarted = false;
-    this.audio?.playSFX('start');
+    this.audio?.playSFX('count3');
+    this.entryFxTimers.push(setTimeout(() => this.audio?.playSFX('count2'), 700));
+    this.entryFxTimers.push(setTimeout(() => this.audio?.playSFX('count1'), 1400));
+    this.entryFxTimers.push(setTimeout(() => this.audio?.playSFX('start'), 1850));
     const audioDelay = Math.max(0, 2300 - (this.chart?.offset_ms || 1324));
     this.earlyAudioTimerId = setTimeout(() => {
       this.earlyAudioTimerId = null;
@@ -445,6 +457,8 @@ export class RhythmGame {
     this.entryAnim = false;
     if (this.entryTimerId) { clearTimeout(this.entryTimerId); this.entryTimerId = null; }
     if (this.earlyAudioTimerId) { clearTimeout(this.earlyAudioTimerId); this.earlyAudioTimerId = null; }
+    this.entryFxTimers.forEach(id => clearTimeout(id));
+    this.entryFxTimers = [];
   }
 
   // ── Judgment ─────────────────────────────────────────────────
@@ -460,13 +474,16 @@ export class RhythmGame {
       const diff = adj - n.time_ms, df = Math.abs(diff);
       if (df <= this.WIN_OK && df < bd) { bd = df; bi = i; bSgn = diff; }
     }
-    if (bi < 0) return;
+    if (bi < 0) {
+      this.audio?.playSFX('tapMiss');
+      return;
+    }
     this.flags[bi] = 1;
     const n = this.chart.notes[bi];
     let txt, col;
-    if (bd <= this.WIN_P) { txt='PERFECT!'; col='#ffe566'; this.cnt.p++; this.score+=300; this.combo++; }
-    else if (bd <= this.WIN_G) { txt='GREAT!'; col='#66ddff'; this.cnt.g++; this.score+=200; this.combo++; }
-    else { txt='GOOD'; col='#88ff88'; this.cnt.ok++; this.score+=100; this.combo++; }
+    if (bd <= this.WIN_P) { txt='PERFECT!'; col='#ffe566'; this.cnt.p++; this.score+=300; this.combo++; this.audio?.playSFX('tapPerfect'); }
+    else if (bd <= this.WIN_G) { txt='GREAT!'; col='#66ddff'; this.cnt.g++; this.score+=200; this.combo++; this.audio?.playSFX('tapGood'); }
+    else { txt='GOOD'; col='#88ff88'; this.cnt.ok++; this.score+=100; this.combo++; this.audio?.playSFX('tapGood'); }
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     this.cScale = 1.5;
     this._spawnJfx(txt, col, n.lane);
@@ -477,6 +494,7 @@ export class RhythmGame {
   _miss(idx) {
     if (this.flags[idx] !== 0) return;
     this.flags[idx] = 2; this.combo = 0; this.cnt.m++;
+    this.audio?.playSFX('tapMiss');
     this._spawnJfx('MISS', '#ff5555', this.chart.notes[idx].lane);
   }
 
@@ -548,9 +566,28 @@ export class RhythmGame {
     const hg = c.createLinearGradient(0,this.VY-20,0,this.VY+70);
     hg.addColorStop(0,'rgba(200,110,30,0)'); hg.addColorStop(.35,'rgba(200,110,30,.20)'); hg.addColorStop(1,'rgba(200,110,30,0)');
     c.fillStyle=hg; c.fillRect(0,this.VY-20,this.W,90);
-    c.save(); c.shadowColor='#ffe840'; c.shadowBlur=32;
-    c.strokeStyle='rgba(255,248,100,0.95)'; c.lineWidth=5;
-    c.beginPath(); c.moveTo(this.TL,this.JY); c.lineTo(this.TR,this.JY); c.stroke();
+    const jDepth = Math.min(0.2, this.NOTE_THICK / this.APPROACH_MS);
+    c.save();
+    c.shadowColor = '#ffe840';
+    c.shadowBlur = 28;
+    for (let i = 0; i < 4; i++) {
+      const pad = this.LW * 0.01;
+      const x1L = this._laneX(i, 0.0) - this._laneHW(0.0) + pad;
+      const x1R = this._laneX(i, 0.0) + this._laneHW(0.0) - pad;
+      const x2L = this._laneX(i, jDepth) - this._laneHW(jDepth) + pad;
+      const x2R = this._laneX(i, jDepth) + this._laneHW(jDepth) - pad;
+      const y1 = this._getY(0.0);
+      const y2 = this._getY(jDepth);
+      const gr = c.createLinearGradient(0, y2, 0, y1);
+      gr.addColorStop(0, 'rgba(255,248,120,0.45)');
+      gr.addColorStop(1, 'rgba(255,248,100,0.96)');
+      c.fillStyle = gr;
+      c.beginPath();
+      c.moveTo(x1L, y1); c.lineTo(x1R, y1);
+      c.lineTo(x2R, y2); c.lineTo(x2L, y2);
+      c.closePath();
+      c.fill();
+    }
     c.restore();
     for (let i=0;i<4;i++) {
       c.save(); c.shadowColor=this.COLORS[i]; c.shadowBlur=this.flash[i]*28+8;
@@ -663,6 +700,23 @@ export class RhythmGame {
     this.ctx.textAlign='center'; this.ctx.font=`bold ${this.H*.13|0}px monospace`;
     this.ctx.fillStyle='#fff'; this.ctx.shadowColor='#ffaa00'; this.ctx.shadowBlur=55;
     this.ctx.fillText('GAME START!',0,0); this.ctx.restore(); this.ctx.shadowBlur=0;
+
+    const step = Math.floor(elapsed / 0.7);
+    const countMap = ['3', '2', '1'];
+    if (step >= 0 && step <= 2) {
+      this.ctx.fillStyle = '#ffe566';
+      this.ctx.shadowColor = '#ffcc33';
+      this.ctx.shadowBlur = 20;
+      this.ctx.font = `bold ${this.H*.12|0}px monospace`;
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(countMap[step], this.cx, this.H * 0.72);
+      this.ctx.shadowBlur = 0;
+    } else if (elapsed < 2.3) {
+      this.ctx.fillStyle = 'rgba(140,220,255,0.95)';
+      this.ctx.font = `bold ${this.H*.07|0}px monospace`;
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('READY', this.cx, this.H * 0.72);
+    }
   }
 
   _drawPaused() {

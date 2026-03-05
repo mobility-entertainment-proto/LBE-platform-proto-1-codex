@@ -1,5 +1,7 @@
 // contents/quiz-b/game.js  クイズB（3D背景 + 遠近法レーンフロー型）
 
+import { loadSongConfig } from '../../core/song-config.js';
+
 const DIFF = {
   easy:   { flowMs: 5000, windowD: 0.10, intervalMs: 2200 },
   normal: { flowMs: 3500, windowD: 0.08, intervalMs: 1700 },
@@ -35,8 +37,10 @@ export class QuizB {
     this._notes       = [];
     this._result      = null;
     this._explanation = '';
-    this._state       = 'IDLE'; // IDLE|READING|FLOWING|RESULT
+    this._state       = 'IDLE'; // IDLE|INTRO|READING|FLOWING|RESULT
     this._skipReading = false;
+    this._introUntil  = 0;
+    this._spokenResult = false;
     this._startTime   = 0;
     this._flash       = [0,0,0,0];
     this._jfx         = [];
@@ -61,11 +65,14 @@ export class QuizB {
       if (this.questions.length === 0) this.questions = data.questions;
     }
     this._qIndex = 0;
+    this._spokenResult = false;
     // BGM（リズムゲームと同じ楽曲をループ再生）
     if (!this.bgmEl) {
       try {
-        const chart = await fetch('./contents/rhythm/chart.json').then(r => r.json());
-        this.bgmEl = new Audio(chart.audio_url);
+        const conf = await loadSongConfig();
+        const bgmUrl = conf.track?.audio_url
+          || (await fetch('./contents/rhythm/chart.json').then(r => r.json())).audio_url;
+        this.bgmEl = new Audio(bgmUrl);
         this.bgmEl.crossOrigin = 'anonymous';
         this.bgmEl.loop = true;
         this.bgmEl.volume = 0.4;
@@ -77,7 +84,11 @@ export class QuizB {
       this.bgmEl.play().catch(() => {});
     }
     this._startLoop();
-    this._startQuestion(); // auto-start (skip IDLE / TAP TO START)
+    this.audio?.unlock();
+    this.audio?.stopSpeech();
+    this.audio?.playSFX('quizStart');
+    this._state = 'INTRO';
+    this._introUntil = performance.now() + 1100;
   }
 
   onExit() {
@@ -85,6 +96,7 @@ export class QuizB {
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
     window.removeEventListener('resize', this._boundResize);
     this.audio?.stopSpeech();
+    this._spokenResult = false;
     if (this.bgmEl) { this.bgmEl.pause(); this.bgmEl = null; }
     // コンテナはDOMに残す（index.htmlが管理）
   }
@@ -231,12 +243,11 @@ export class QuizB {
     this.audio?.unlock();
     this._state = 'READING';
 
-    await Promise.race([
-      this.audio?.speak(this._question.question) ?? Promise.resolve(),
-      new Promise(r => {
-        const check = setInterval(() => { if (this._skipReading) { clearInterval(check); r(); } }, 50);
-      }),
-    ]);
+    const readSeq = [this._question.question];
+    for (let i = 0; i < Math.min(4, this._question.choices.length); i++) {
+      readSeq.push(`${NAMES[i]}: ${this._question.choices[i]}`);
+    }
+    await this._speakSequence(readSeq);
 
     await new Promise(r => setTimeout(r, 500));
     this._spawnNotes();
@@ -245,7 +256,7 @@ export class QuizB {
   }
 
   _spawnNotes() {
-    const choices = [...this._question.choices].sort(() => Math.random() - 0.5);
+    const choices = [...this._question.choices];
     let lastLane = -1;
     choices.forEach((text, i) => {
       let lane;
@@ -262,9 +273,38 @@ export class QuizB {
     });
   }
 
+  async _speakSequence(lines) {
+    for (const line of lines) {
+      if (this._skipReading) break;
+      await Promise.race([
+        this.audio?.speak(line) ?? Promise.resolve(),
+        new Promise(resolve => {
+          const check = setInterval(() => {
+            if (this._skipReading) { clearInterval(check); resolve(); }
+          }, 50);
+        }),
+      ]);
+      if (this._skipReading) break;
+    }
+  }
+
+  _failCurrent(lane, text = 'MISS!') {
+    if (this._state !== 'FLOWING' || this._result) return;
+    this._result = 'miss';
+    this.audio?.playSFX('bubuu');
+    this._spawnJfx(text, '#ff5555', lane);
+    for (const note of this._notes) note.judged = true;
+    this._state = 'RESULT';
+    this._spokenResult = false;
+  }
+
   // ── Update ────────────────────────────────────────────────────
 
   _update() {
+    if (this._state === 'INTRO') {
+      if (performance.now() >= this._introUntil) this._startQuestion();
+      return;
+    }
     if (this._state !== 'FLOWING') return;
     const elapsed = performance.now() - this._startTime;
 
@@ -285,8 +325,8 @@ export class QuizB {
       if (!n.judged && n.d < -0.08) {
         n.judged = true;
         if (n.isCorrect && !this._result) {
-          this._result = 'miss';
-          this._spawnJfx('MISS!', '#ff5555', n.lane);
+          this._failCurrent(n.lane, 'TIME UP');
+          return;
         }
       }
     }
@@ -294,8 +334,12 @@ export class QuizB {
     // 全ノートが通過済みなら結果へ
     const allPast = this._notes.length > 0 && this._notes.every(n => n.d < -0.25);
     if (allPast) {
-      if (!this._result) this._result = 'miss';
+      if (!this._result) {
+        this._result = 'miss';
+        this.audio?.playSFX('bubuu');
+      }
       this._state = 'RESULT';
+      this._spokenResult = false;
     }
   }
 
@@ -303,6 +347,7 @@ export class QuizB {
 
   _onInput(cx, cy) {
     this.audio?.unlock();
+    if (this._state === 'INTRO') return;
     if (this._state === 'IDLE') { this._startQuestion(); return; }
     if (this._state === 'READING') { this._skipReading = true; this.audio?.stopSpeech(); return; }
     if (this._state === 'RESULT') {
@@ -329,12 +374,14 @@ export class QuizB {
     hit.judged = true;
     if (hit.isCorrect) {
       this._result = 'correct';
+      this._spokenResult = false;
       this.audio?.playSFX('pinpon');
       this._spawnJfx('CORRECT!', '#ffe566', hit.lane);
       for (const n of this._notes) n.judged = true;
       setTimeout(() => { if (this._state === 'FLOWING') this._state = 'RESULT'; }, 800);
     } else {
       this._result = 'wrong';
+      this._spokenResult = false;
       this.audio?.playSFX('bubuu');
       this._spawnJfx('WRONG!', '#ff5555', hit.lane);
       setTimeout(() => { if (this._state === 'FLOWING') this._state = 'RESULT'; }, 800);
@@ -352,10 +399,29 @@ export class QuizB {
     if (!c) return;
     c.clearRect(0, 0, this.W, this.H);
 
+    if (this._state === 'INTRO')   { this._drawIntro();   return; }
     if (this._state === 'IDLE')    { this._drawIdle();    return; }
     if (this._state === 'READING') { this._drawReading(); return; }
     if (this._state === 'FLOWING') { this._drawFlowing(); return; }
     if (this._state === 'RESULT')  { this._drawResult();  return; }
+  }
+
+  _drawIntro() {
+    const c = this.ctx;
+    const remain = Math.max(0, this._introUntil - performance.now());
+    const p = 1 - remain / 1100;
+    c.fillStyle = `rgba(6,10,30,${0.5 + p * 0.35})`;
+    c.fillRect(0, 0, this.W, this.H);
+    c.fillStyle = '#66ccff';
+    c.shadowColor = '#55aaff';
+    c.shadowBlur = 18;
+    c.font = `bold ${this.H*.06|0}px monospace`;
+    c.textAlign = 'center';
+    c.fillText('QUIZ START', this.cx, this.H * 0.45);
+    c.shadowBlur = 0;
+    c.fillStyle = '#cde';
+    c.font = `${this.H*.028|0}px monospace`;
+    c.fillText('Get Ready...', this.cx, this.H * 0.55);
   }
 
   _drawIdle() {
@@ -386,6 +452,11 @@ export class QuizB {
     c.fillText('Q U E S T I O N', this.cx, by + this.H*.055);
     c.fillStyle = '#fff'; c.font = `bold ${this.H*.034|0}px monospace`;
     this._wrapText(this._question?.question || '', this.cx, by + this.H*.12, bw * 0.86, this.H*.05);
+    c.fillStyle = '#bfe3ff';
+    c.font = `${this.H*.024|0}px monospace`;
+    for (let i = 0; i < Math.min(4, this._question?.choices?.length || 0); i++) {
+      c.fillText(`${NAMES[i]}: ${this._question.choices[i]}`, this.cx, by + this.H * (0.21 + i * 0.05));
+    }
 
     // ヒント
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 400);
@@ -557,6 +628,12 @@ export class QuizB {
   _drawResult() {
     this._btnList = [];
     const c = this.ctx;
+    if (!this._spokenResult) {
+      this._spokenResult = true;
+      const answerText = this._question?.answer ? `正解は ${this._question.answer}` : '';
+      const expText = this._explanation ? `解説: ${this._explanation}` : '';
+      this._speakSequence([answerText, expText].filter(Boolean));
+    }
     // 半透明オーバーレイ（背景を透かす）
     c.fillStyle = 'rgba(4,4,20,0.84)'; c.fillRect(0, 0, this.W, this.H);
 
