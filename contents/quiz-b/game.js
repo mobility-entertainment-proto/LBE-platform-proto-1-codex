@@ -252,7 +252,28 @@ export class QuizB {
   }
 
   _spawnNotes() {
-    const choices = [...this._question.choices];
+    const answer = this._question.answer;
+    const distractorPool = new Set();
+    for (const q of this.questions || []) {
+      for (const ch of q.choices || []) if (ch !== answer) distractorPool.add(ch);
+      if (q.answer && q.answer !== answer) distractorPool.add(q.answer);
+    }
+    for (const ch of this._question.choices || []) if (ch !== answer) distractorPool.add(ch);
+
+    const shuffledPool = [...distractorPool].sort(() => Math.random() - 0.5);
+    const targetCount = 4 + Math.floor(Math.random() * 3); // 4-6
+    const choices = [answer];
+    for (const ch of shuffledPool) {
+      if (choices.length >= targetCount) break;
+      if (!choices.includes(ch)) choices.push(ch);
+    }
+    // Fallback: guarantee at least 4 options when pool is smaller than expected.
+    for (const ch of this._question.choices || []) {
+      if (choices.length >= 4) break;
+      if (!choices.includes(ch)) choices.push(ch);
+    }
+    choices.sort(() => Math.random() - 0.5);
+
     let lastLane = -1;
     choices.forEach((text, i) => {
       let lane;
@@ -317,8 +338,8 @@ export class QuizB {
       // d: flowMs かけて 1→0 へ減少、その後マイナスへ
       n.d = 1 - (elapsed - n.spawnAt) / this._diff.flowMs;
 
-      // 正解ノートが判定ラインを通過した → MISS
-      if (!n.judged && n.d < -0.08) {
+      // 正解ノート全体が判定ラインを抜けたらMISS
+      if (!n.judged && n.d < -(NOTE_DEPTH + 0.03)) {
         n.judged = true;
         if (n.isCorrect && !this._result) {
           this._failCurrent(n.lane, 'TIME UP');
@@ -358,11 +379,17 @@ export class QuizB {
     this.audio?.playSFX('tap');
     this._flash[li] = 1;
 
-    // 判定ゾーン内のノートを探す（d が windowD 以内）
+    // 判定ラインにノートが重なっている間はヒット可。
     let hit = null;
+    let bestDist = Infinity;
     for (const n of this._notes) {
       if (!n.spawned || n.judged || n.lane !== li) continue;
-      if (Math.abs(n.d) <= this._diff.windowD) { hit = n; break; }
+      const overlapTop = 0.02;
+      const overlapBottom = -(NOTE_DEPTH + 0.02);
+      if (n.d <= overlapTop && n.d >= overlapBottom) {
+        const dist = Math.abs(n.d);
+        if (dist < bestDist) { bestDist = dist; hit = n; }
+      }
     }
 
     if (!hit) { this._spawnJfx('EARLY', '#ffaa44', li); return; }
