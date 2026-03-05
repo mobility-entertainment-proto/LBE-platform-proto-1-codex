@@ -6,6 +6,7 @@
       "question": "東京タワーの高さは約何メートル？",
       "answer": "約333m",
       "choices": ["約250m", "約333m", "約450m", "約500m"],
+      "extra_choices": ["約300m", "約350m"],
       "explanation": "東京タワーは1958年に完成し、高さは333mです。",
       "difficulty": "normal"
     },
@@ -15,6 +16,7 @@
       "question": "東京23区で最も面積が大きい区は？",
       "answer": "大田区",
       "choices": ["世田谷区", "江戸川区", "練馬区", "大田区"],
+      "extra_choices": ["足立区", "葛飾区"],
       "explanation": "東京23区では大田区が最も面積が大きい区です。",
       "difficulty": "normal"
     },
@@ -24,6 +26,7 @@
       "question": "東京の都庁（東京都庁）があるのはどこ？",
       "answer": "新宿区",
       "choices": ["千代田区", "港区", "新宿区", "台東区"],
+      "extra_choices": ["品川区", "豊島区"],
       "explanation": "東京都庁は新宿区西新宿にあります。",
       "difficulty": "easy"
     },
@@ -33,6 +36,7 @@
       "question": "浅草寺がある東京の区は？",
       "answer": "台東区",
       "choices": ["文京区", "台東区", "墨田区", "中央区"],
+      "extra_choices": ["荒川区", "江東区"],
       "explanation": "浅草寺は台東区浅草にある、東京を代表する寺院です。",
       "difficulty": "easy"
     },
@@ -42,9 +46,9 @@
       "question": "渋谷駅前で有名なスクランブル交差点がある区は？",
       "answer": "渋谷区",
       "choices": ["品川区", "渋谷区", "目黒区", "中野区"],
+      "extra_choices": ["世田谷区", "杉並区"],
       "explanation": "スクランブル交差点は渋谷駅ハチ公口側、渋谷区にあります。",
       "difficulty": "normal"
     }
   ]
 }
-

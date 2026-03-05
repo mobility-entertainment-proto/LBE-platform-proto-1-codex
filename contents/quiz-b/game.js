@@ -253,24 +253,18 @@ export class QuizB {
 
   _spawnNotes() {
     const answer = this._question.answer;
-    const distractorPool = new Set();
-    for (const q of this.questions || []) {
-      for (const ch of q.choices || []) if (ch !== answer) distractorPool.add(ch);
-      if (q.answer && q.answer !== answer) distractorPool.add(q.answer);
-    }
-    for (const ch of this._question.choices || []) if (ch !== answer) distractorPool.add(ch);
+    const localPool = [
+      ...(this._question.choices || []),
+      ...(this._question.extra_choices || []),
+    ];
+    const uniquePool = [...new Set(localPool)];
 
-    const shuffledPool = [...distractorPool].sort(() => Math.random() - 0.5);
-    const targetCount = 4 + Math.floor(Math.random() * 3); // 4-6
+    const targetCount = Math.min(uniquePool.length, 4 + Math.floor(Math.random() * 3)); // 4-6
+    const distractors = uniquePool.filter(ch => ch !== answer).sort(() => Math.random() - 0.5);
     const choices = [answer];
-    for (const ch of shuffledPool) {
+    for (const ch of distractors) {
       if (choices.length >= targetCount) break;
-      if (!choices.includes(ch)) choices.push(ch);
-    }
-    // Fallback: guarantee at least 4 options when pool is smaller than expected.
-    for (const ch of this._question.choices || []) {
-      if (choices.length >= 4) break;
-      if (!choices.includes(ch)) choices.push(ch);
+      choices.push(ch);
     }
     choices.sort(() => Math.random() - 0.5);
 
@@ -308,7 +302,7 @@ export class QuizB {
   _failCurrent(lane, text = 'MISS!') {
     if (this._state !== 'FLOWING' || this._result) return;
     this._result = 'miss';
-    this.audio?.playSFX('bubuu');
+    this.audio?.playSFX('bubuuLoud');
     this._spawnJfx(text, '#ff5555', lane);
     for (const note of this._notes) note.judged = true;
     this._state = 'RESULT';
@@ -353,7 +347,7 @@ export class QuizB {
     if (allPast) {
       if (!this._result) {
         this._result = 'miss';
-        this.audio?.playSFX('bubuu');
+        this.audio?.playSFX('bubuuLoud');
       }
       this._state = 'RESULT';
       this._spokenResult = false;
