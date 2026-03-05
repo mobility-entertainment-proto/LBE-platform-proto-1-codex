@@ -46,6 +46,7 @@ export class QuizB {
     this._jfx         = [];
     this._btnList     = [];
     this._diff        = DIFF.normal;
+    this._resultTimer = null;
     // BGM
     this.bgmEl = null;
     // RAF
@@ -93,6 +94,7 @@ export class QuizB {
 
   onExit() {
     this._state = 'IDLE';
+    if (this._resultTimer) { clearTimeout(this._resultTimer); this._resultTimer = null; }
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
     window.removeEventListener('resize', this._boundResize);
     this.audio?.stopSpeech();
@@ -102,7 +104,11 @@ export class QuizB {
   }
 
   onStart() { if (this._state === 'IDLE') this._startQuestion(); }
-  onStop()  { this.audio?.stopSpeech(); this._state = 'IDLE'; }
+  onStop()  {
+    this.audio?.stopSpeech();
+    if (this._resultTimer) { clearTimeout(this._resultTimer); this._resultTimer = null; }
+    this._state = 'IDLE';
+  }
 
   getUI() {
     this.container = document.createElement('div');
@@ -240,6 +246,7 @@ export class QuizB {
     this._flash       = [0,0,0,0];
     this._jfx         = [];
     this._skipReading = false;
+    if (this._resultTimer) { clearTimeout(this._resultTimer); this._resultTimer = null; }
     this.audio?.unlock();
     this._state = 'READING';
 
@@ -305,8 +312,11 @@ export class QuizB {
     this.audio?.playSFX('bubuuLoud');
     this._spawnJfx(text, '#ff5555', lane);
     for (const note of this._notes) note.judged = true;
-    this._state = 'RESULT';
     this._spokenResult = false;
+    this._resultTimer = setTimeout(() => {
+      this._resultTimer = null;
+      if (this._state === 'FLOWING') this._state = 'RESULT';
+    }, 260);
   }
 
   // ── Update ────────────────────────────────────────────────────
@@ -332,8 +342,8 @@ export class QuizB {
       // d: flowMs かけて 1→0 へ減少、その後マイナスへ
       n.d = 1 - (elapsed - n.spawnAt) / this._diff.flowMs;
 
-      // 正解ノート全体が判定ラインを抜けたらMISS
-      if (!n.judged && n.d < -(NOTE_DEPTH + 0.03)) {
+      // 正解ノートがラインを抜けた直後にMISS
+      if (!n.judged && n.d < -(NOTE_DEPTH + 0.005)) {
         n.judged = true;
         if (n.isCorrect && !this._result) {
           this._failCurrent(n.lane, 'TIME UP');
@@ -345,6 +355,7 @@ export class QuizB {
     // 全ノートが通過済みなら結果へ
     const allPast = this._notes.length > 0 && this._notes.every(n => n.d < -0.25);
     if (allPast) {
+      if (this._resultTimer) return;
       if (!this._result) {
         this._result = 'miss';
         this.audio?.playSFX('bubuuLoud');
@@ -568,7 +579,7 @@ export class QuizB {
 
       c.save();
       c.shadowColor = GLOWS[n.lane];
-      c.shadowBlur  = Math.max(0, 18 * sNear);
+      c.shadowBlur  = Math.max(0, 6 * sNear);
       c.globalAlpha = 0.92;
       c.fillStyle   = gr;
 
@@ -589,6 +600,12 @@ export class QuizB {
       c.beginPath();
       c.moveTo(xNear - hwNear, yNear);
       c.lineTo(xNear + hwNear, yNear);
+      c.stroke();
+      c.strokeStyle = 'rgba(0,0,0,0.25)';
+      c.lineWidth = Math.max(1, 2 * sNear);
+      c.beginPath();
+      c.moveTo(xNear - hwNear, yNear + 1);
+      c.lineTo(xNear + hwNear, yNear + 1);
       c.stroke();
 
       c.restore();
