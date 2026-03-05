@@ -243,11 +243,7 @@ export class QuizB {
     this.audio?.unlock();
     this._state = 'READING';
 
-    const readSeq = [this._question.question];
-    for (let i = 0; i < Math.min(4, this._question.choices.length); i++) {
-      readSeq.push(`${NAMES[i]}: ${this._question.choices[i]}`);
-    }
-    await this._speakSequence(readSeq);
+    await this._speakSequence([this._question.question]);
 
     await new Promise(r => setTimeout(r, 500));
     this._spawnNotes();
@@ -452,12 +448,6 @@ export class QuizB {
     c.fillText('Q U E S T I O N', this.cx, by + this.H*.055);
     c.fillStyle = '#fff'; c.font = `bold ${this.H*.034|0}px monospace`;
     this._wrapText(this._question?.question || '', this.cx, by + this.H*.12, bw * 0.86, this.H*.05);
-    c.fillStyle = '#bfe3ff';
-    c.font = `${this.H*.024|0}px monospace`;
-    for (let i = 0; i < Math.min(4, this._question?.choices?.length || 0); i++) {
-      c.fillText(`${NAMES[i]}: ${this._question.choices[i]}`, this.cx, by + this.H * (0.21 + i * 0.05));
-    }
-
     // ヒント
     const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 400);
     c.fillStyle = `rgba(100,200,255,${pulse})`;
@@ -632,7 +622,7 @@ export class QuizB {
       this._spokenResult = true;
       const answerText = this._question?.answer ? `正解は ${this._question.answer}` : '';
       const expText = this._explanation ? `解説: ${this._explanation}` : '';
-      this._speakSequence([answerText, expText].filter(Boolean));
+      this._speakSequence([answerText, this._explanation].filter(Boolean));
     }
     // 半透明オーバーレイ（背景を透かす）
     c.fillStyle = 'rgba(4,4,20,0.84)'; c.fillRect(0, 0, this.W, this.H);
