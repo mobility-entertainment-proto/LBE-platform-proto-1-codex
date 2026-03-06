@@ -233,6 +233,16 @@ export class QuizB {
   _getS(d)     { return Math.max(0, (this._getY(d) - this.VY) / (this.JY - this.VY)); }
   _laneX(i, d) { const s = this._getS(d), bx = this.TL + (i + .5) * this.LW; return this.cx + s * (bx - this.cx); }
   _laneHW(d)   { return this._getS(d) * this.LW / 2; }
+  _laneEdgeX(edgeIdx, d) {
+    const s = this._getS(d);
+    const bx = this.TL + edgeIdx * this.LW;
+    return this.cx + s * (bx - this.cx);
+  }
+  _laneBounds(laneIdx, d, pad = 0) {
+    const l = this._laneEdgeX(laneIdx, d) + pad;
+    const r = this._laneEdgeX(laneIdx + 1, d) - pad;
+    return { l, r, c: (l + r) * 0.5, hw: Math.max(0, (r - l) * 0.5) };
+  }
 
   // ── Question flow ─────────────────────────────────────────────
 
@@ -389,15 +399,15 @@ export class QuizB {
     let bestDist = Infinity;
     for (const n of this._notes) {
       if (!n.spawned || n.judged || n.lane !== li) continue;
-      const overlapTop = 0.02;
-      const overlapBottom = -(NOTE_DEPTH + 0.02);
-      if (n.d <= overlapTop && n.d >= overlapBottom) {
+      const aliveTop = 1.0;
+      const aliveBottom = -(NOTE_DEPTH + 0.02);
+      if (n.d <= aliveTop && n.d >= aliveBottom) {
         const dist = Math.abs(n.d);
         if (dist < bestDist) { bestDist = dist; hit = n; }
       }
     }
 
-    if (!hit) { this._spawnJfx('EARLY', '#ffaa44', li); return; }
+    if (!hit) return;
 
     hit.judged = true;
     if (hit.isCorrect) {
@@ -497,10 +507,12 @@ export class QuizB {
     c.shadowBlur = 16;
     for (let i = 0; i < 4; i++) {
       const pad = this.LW * 0.035;
-      const x1L = this._laneX(i, 0.0) - this._laneHW(0.0) + pad;
-      const x1R = this._laneX(i, 0.0) + this._laneHW(0.0) - pad;
-      const x2L = this._laneX(i, jDepth) - this._laneHW(jDepth) + pad;
-      const x2R = this._laneX(i, jDepth) + this._laneHW(jDepth) - pad;
+      const near = this._laneBounds(i, 0.0, pad);
+      const far = this._laneBounds(i, jDepth, pad);
+      const x1L = near.l;
+      const x1R = near.r;
+      const x2L = far.l;
+      const x2R = far.r;
       const y1 = this._getY(0.0);
       const y2 = this._getY(jDepth);
       const gr = c.createLinearGradient(0, y2, 0, y1);
@@ -585,11 +597,13 @@ export class QuizB {
       const yNear = dNear >= 0 ? this._getY(dNear) : this.JY + (-dNear) * (this.JY - this.VY);
       const yFar  = this._getY(dFar);
 
-      const xNear = this._laneX(n.lane, Math.max(0.01, dNear));
-      const xFar  = this._laneX(n.lane, dFar);
       const pad = this.LW * 0.035;
-      const hwNear = Math.max(2, this._laneHW(Math.max(0.01, dNear)) - pad);
-      const hwFar  = Math.max(2, this._laneHW(dFar) - pad);
+      const near = this._laneBounds(n.lane, Math.max(0.01, dNear), pad);
+      const far  = this._laneBounds(n.lane, dFar, pad);
+      const xNear = near.c;
+      const xFar  = far.c;
+      const hwNear = Math.max(2, near.hw);
+      const hwFar  = Math.max(2, far.hw);
 
       // グラデーション（奥=暗→手前=明）
       const gr = c.createLinearGradient(0, yFar, 0, yNear);
