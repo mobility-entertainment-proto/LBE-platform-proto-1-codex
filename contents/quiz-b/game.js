@@ -231,10 +231,18 @@ export class QuizB {
   // d=1 → VY（消失点）, d=0 → JY（判定ライン）
   _getY(d)     { return this.JY + d * (this.VY - this.JY); }
   _getS(d)     { return Math.max(0, (this._getY(d) - this.VY) / (this.JY - this.VY)); }
-  _laneX(i, d) { const s = this._getS(d), bx = this.TL + (i + .5) * this.LW; return this.cx + s * (bx - this.cx); }
-  _laneHW(d)   { return this._getS(d) * this.LW / 2; }
+  _laneX(i, d) {
+    const dc = Math.max(0, Math.min(1, d));
+    const s = this._getS(dc), bx = this.TL + (i + .5) * this.LW;
+    return this.cx + s * (bx - this.cx);
+  }
+  _laneHW(d) {
+    const dc = Math.max(0, Math.min(1, d));
+    return this._getS(dc) * this.LW / 2;
+  }
   _laneEdgeX(edgeIdx, d) {
-    const s = this._getS(d);
+    const dc = Math.max(0, Math.min(1, d));
+    const s = this._getS(dc);
     const bx = this.TL + edgeIdx * this.LW;
     return this.cx + s * (bx - this.cx);
   }
@@ -506,7 +514,8 @@ export class QuizB {
     c.shadowColor = '#ffe840';
     c.shadowBlur = 16;
     for (let i = 0; i < 4; i++) {
-      const pad = this.LW * 0.035;
+      const lanePadRatio = (this.W / this.H >= 1.55) ? 0.06 : 0.04;
+      const pad = this.LW * lanePadRatio;
       const near = this._laneBounds(i, 0.0, pad);
       const far = this._laneBounds(i, jDepth, pad);
       const x1L = near.l;
@@ -597,7 +606,8 @@ export class QuizB {
       const yNear = dNear >= 0 ? this._getY(dNear) : this.JY + (-dNear) * (this.JY - this.VY);
       const yFar  = this._getY(dFar);
 
-      const pad = this.LW * 0.035;
+      const lanePadRatio = (this.W / this.H >= 1.55) ? 0.06 : 0.04;
+      const pad = this.LW * lanePadRatio;
       const near = this._laneBounds(n.lane, Math.max(0.01, dNear), pad);
       const far  = this._laneBounds(n.lane, dFar, pad);
       const xNear = near.c;
