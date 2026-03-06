@@ -491,10 +491,28 @@ export class QuizB {
     const c = this.ctx;
 
     // 判定ライン（グロー付き）
+    const jDepth = Math.min(0.18, NOTE_DEPTH);
     c.save();
-    c.shadowColor = '#ffe840'; c.shadowBlur = 24;
-    c.strokeStyle = 'rgba(255,248,100,0.9)'; c.lineWidth = 4;
-    c.beginPath(); c.moveTo(this.TL, this.JY); c.lineTo(this.TR, this.JY); c.stroke();
+    c.shadowColor = '#ffe840';
+    c.shadowBlur = 16;
+    for (let i = 0; i < 4; i++) {
+      const pad = this.LW * 0.035;
+      const x1L = this._laneX(i, 0.0) - this._laneHW(0.0) + pad;
+      const x1R = this._laneX(i, 0.0) + this._laneHW(0.0) - pad;
+      const x2L = this._laneX(i, jDepth) - this._laneHW(jDepth) + pad;
+      const x2R = this._laneX(i, jDepth) + this._laneHW(jDepth) - pad;
+      const y1 = this._getY(0.0);
+      const y2 = this._getY(jDepth);
+      const gr = c.createLinearGradient(0, y2, 0, y1);
+      gr.addColorStop(0, 'rgba(255,248,120,0.42)');
+      gr.addColorStop(1, 'rgba(255,248,100,0.90)');
+      c.fillStyle = gr;
+      c.beginPath();
+      c.moveTo(x1L, y1); c.lineTo(x1R, y1);
+      c.lineTo(x2R, y2); c.lineTo(x2L, y2);
+      c.closePath();
+      c.fill();
+    }
     c.restore();
 
     // レーン区切り線（消失点に向かって収束）
@@ -569,8 +587,9 @@ export class QuizB {
 
       const xNear = this._laneX(n.lane, Math.max(0.01, dNear));
       const xFar  = this._laneX(n.lane, dFar);
-      const hwNear = this._laneHW(Math.max(0.01, dNear));
-      const hwFar  = this._laneHW(dFar);
+      const pad = this.LW * 0.035;
+      const hwNear = Math.max(2, this._laneHW(Math.max(0.01, dNear)) - pad);
+      const hwFar  = Math.max(2, this._laneHW(dFar) - pad);
 
       // グラデーション（奥=暗→手前=明）
       const gr = c.createLinearGradient(0, yFar, 0, yNear);

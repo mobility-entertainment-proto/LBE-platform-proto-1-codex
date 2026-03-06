@@ -106,9 +106,9 @@ export class AudioManager {
       tone(110, 0.20, 0.55, 'sawtooth', 0);
       tone(100, 0.25, 0.55, 'sawtooth', 0.22);
     } else if (type === 'bubuuLoud') {
-      tone(110, 0.24, 0.78, 'sawtooth', 0);
-      tone(98, 0.30, 0.80, 'sawtooth', 0.24);
-      tone(82, 0.22, 0.65, 'triangle', 0.12);
+      tone(110, 0.24, 1.55, 'sawtooth', 0);
+      tone(98, 0.30, 1.60, 'sawtooth', 0.24);
+      tone(82, 0.24, 1.30, 'triangle', 0.12);
     } else if (type === 'count3') {
       tone(620, 0.09, 0.22, 'square', 0);
       noise(0.02, 7000, 0.08);
